@@ -1,15 +1,25 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <WebServer.h>
+#include "FileSystem.h" 
+#include "index.h"  
 
 LiquidCrystal_I2C lcd(0x27, 20, 4);
-const byte buttonPin = 3;
-const byte sensorPin = 4;
+WebServer server(80);
+
+const char *ssid = "Corrida";
+const byte buttonPin = 16;
+const byte sensorPin = 17;
 byte state = LOW;
 boolean race = false, arme = false, startRace = false;
 const int buttonInterval = 2000, sensorInterval = 2000, lcdInterval = 100;
 unsigned long previousButtonMillis = 0, previousSensorMillis = 0, firstLap = 0, lastLap = 0, current,lcdSensorMillis=0;
-int inicio = 0, fim = 0, tempo = 0, atual = 0;
-String textLcd;
+int inicio = 0, fim = 0;
+String textLcd, tempo = "0";
+
+
 void setup() {
   Serial.begin(9600);
   Serial.println("inicializando");
@@ -17,9 +27,23 @@ void setup() {
   lcd.backlight();
   lcd.setCursor(0, 0);
   lcd.print("Inicializando!");
-  pinMode(buttonPin, INPUT);
+  pinMode(buttonPin, INPUT_PULLUP);
   pinMode(sensorPin, INPUT_PULLUP);
-  Serial.println("DEBUG");
+  if(!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)){
+        Serial.println("SPIFFS Mount Failed");
+        return;
+    }
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(ssid);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.softAPIP());  
+  server.on("/", handleRoot);      
+  server.on("/getTime", getTime);
+  server.on("/getJson", getJson);
+  server.on("/postJson", receiveJson);
+  server.on("/delDados", delDados);
+  server.begin();                  
+  Serial.println("HTTP server started");
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Desarmado!");
@@ -88,10 +112,42 @@ void racing() {
     lcd.setCursor(0, 1);
     unsigned long res =(lastLap-firstLap);
     Serial.println("Res="+String(res)+"firstLap="+String(firstLap)+"lastLap="+String(lastLap));
-    lcd.print("Tempo ="+ String(res/1000)+","+String(res%1000));
+    tempo = String(res/1000)+","+String(res%1000);
+    lcd.print("Tempo ="+ tempo );
   }
 
 }
+
+void handleRoot() {
+ String s = MAIN_page; //Read HTML contents
+ server.send(200, "text/html", s); //Send web page
+}
+
+void getJson(){
+  Serial.println("getJSON");
+  if(!readFile(SPIFFS, "/dados.txt")){
+    String str = "vazio";
+    str.toCharArray(dados,250);
+    }
+  
+   server.send(200, "text/plane", dados);
+  };
+void getTime() {
+  //Serial.println("getTime");
+ server.send(200, "text/plane", tempo); 
+}
+void receiveJson() {
+ String str = server.arg("plain");
+ char strChar[250];
+ str.toCharArray(strChar, 250);
+ writeFile(SPIFFS, "/dados.txt", strChar);
+ Serial.println("POST body was:\n" + str);
+ server.send(200, ("text/plain"), "POST body was:\n" + str);
+}
+void delDados(){
+  deleteFile(SPIFFS, "/dados.txt");
+  server.send(200); 
+  }
 
 void loop() {
   if (race == false) {
@@ -111,6 +167,6 @@ void loop() {
     lcd.print(textLcd);
     lcdSensorMillis = millis();
     }
-    
     }
+    server.handleClient();
 }
