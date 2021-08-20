@@ -71,6 +71,15 @@ input[type=text] , text{
   margin: 4px 2px;
   cursor: pointer;
 }
+.export{
+  background-color: #252FFC;
+  border: none;
+  color: white;
+  padding: 16px 32px;
+  text-decoration: none;
+  margin: 4px 2px;
+  cursor: pointer;
+}
 
 </style>
     
@@ -87,6 +96,7 @@ Nome:
 Tempo:
 <text type="text" name="time" id="time" value = "0" /><br />
 </div>
+<input class="export" type="button" value="Exportar Dados" onclick="exportCsv()" id="add">
 <input class="del" type="button" value="Deletar Dados" onclick="delDados()" id="add">
 </div>
 <table id="table" border="1">
@@ -121,6 +131,41 @@ var xhttp = new XMLHttpRequest();
 
 }
 
+const toCsv = function(table) {
+    // Query all rows
+    const rows = table.querySelectorAll('tr');
+
+    return [].slice.call(rows)
+        .map(function(row) {
+            // Query all cells
+            const cells = row.querySelectorAll('th,td');
+            return [].slice.call(cells)
+                .map(function(cell) {
+                    return cell.textContent;
+                })
+                .join(',');
+        })
+        .join('\n');
+};
+
+const download = function(text, fileName) {
+    const link = document.createElement('a');
+    link.setAttribute('href', `data:text/csv;charset=utf-8,${encodeURIComponent(text)}`);
+    link.setAttribute('download', fileName);
+
+    link.style.display = 'none';
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+};
+
+function exportCsv(){
+const table = document.getElementById('table');
+  const csv = toCsv(table);
+    download(csv, 'Corrida.csv');
+}
 
 function addRow() {
    "use strict";
@@ -144,8 +189,10 @@ function addRow() {
   xhttp.send(JSON.stringify(rcJson));
 };
   function delDados(){
+    var xhttp = new XMLHttpRequest();
     xhttp.open("get", "delDados",true);
     xhttp.send();
+    location.reload();
     }
 
   function getJson(){

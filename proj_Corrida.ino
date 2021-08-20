@@ -145,6 +145,7 @@ void receiveJson() {
  server.send(200, ("text/plain"), "POST body was:\n" + str);
 }
 void delDados(){
+  Serial.println("Deletando Dados");
   deleteFile(SPIFFS, "/dados.txt");
   server.send(200); 
   }
